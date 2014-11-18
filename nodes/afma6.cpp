@@ -54,9 +54,10 @@ class RosAfma6Node
     geometry_msgs::PoseStamped position;
     geometry_msgs::PoseStamped ee_position;
     		
-    //for odom->base_link transform
-    tf::TransformBroadcaster odom_broadcaster;
-    geometry_msgs::TransformStamped odom_trans;
+    //for world->ee_link transform
+    tf::TransformBroadcaster tf_broadcaster;
+//    geometry_msgs::TransformStamped ee_trans;
+
     //for resolving tf names.
     std::string tf_prefix;
     std::string frame_id_odom;
@@ -185,10 +186,17 @@ void RosAfma6Node::publish()
     //            position.pose.position.x, position.pose.position.y, position.pose.position.z,
     //            position.pose.orientation.w, position.pose.orientation.x, position.pose.orientation.y, position.pose.orientation.z);
     pose_pub.publish(position);
+    tf::Stamped<tf::Pose> tfPosition;
+    tf::poseStampedMsgToTF(position, tfPosition);
+    tf_broadcaster.sendTransform(tf::StampedTransform(tfPosition, ros::Time::now(), "base", "Dragonfly2-8mm-ccmop"));
 
     ee_position.pose = visp_bridge::toGeometryMsgsPose(wMe);
     ee_position.header.stamp = position.header.stamp;
     ee_pose_pub.publish(ee_position);
+    tf::Stamped<tf::Pose> tfEe;
+	tf::poseStampedMsgToTF(ee_position, tfEe);
+	tf_broadcaster.sendTransform(tf::StampedTransform(tfEe, ros::Time::now(), "base", "end_effector"));
+
 
     vpColVector vel(6);
     try {
