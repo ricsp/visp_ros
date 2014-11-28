@@ -1,0 +1,7 @@
+
+geometry_msgs/Pose pose
+
+---
+
+bool result
+string error

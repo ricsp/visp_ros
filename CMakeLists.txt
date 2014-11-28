@@ -17,6 +17,18 @@ find_package(VISP REQUIRED)
 # Add package definitions
 #add_definitions(${VISP_DEFINITIONS})
 
+
+## Generate services in the 'srv' folder
+add_service_files(
+  FILES
+  SetCameraPose.srv
+)
+
+generate_messages(
+  DEPENDENCIES
+  geometry_msgs
+)
+
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -39,6 +51,7 @@ catkin_package(
   DEPENDS
     VISP
 )
+
 
 ###################
 ## Build library ##

@@ -8,6 +8,9 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <sensor_msgs/JointState.h>
 #include <nav_msgs/Odometry.h>
+
+#include <visp_ros/SetCameraPose.h>
+
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
@@ -29,6 +32,8 @@ class RosAfma6Node
   public:
     int setup();
     void setCameraVel( const geometry_msgs::TwistStampedConstPtr &);
+    bool setCameraPose(visp_ros::SetCameraPose::RequestType  &req,
+    		visp_ros::SetCameraPose::ResponseType &res);
     void setJointPos( const sensor_msgs::JointStateConstPtr &);
     void setJointVel( const sensor_msgs::JointStateConstPtr &);
     void spin();
@@ -43,6 +48,8 @@ class RosAfma6Node
     ros::Subscriber cmd_camvel_sub;
     ros::Subscriber cmd_jointpos_sub;
     ros::Subscriber cmd_jointvel_sub;
+
+    ros::ServiceServer setCameraPose_srv;
 
     ros::Time cmdTime;
 
@@ -66,6 +73,7 @@ class RosAfma6Node
     vpHomogeneousMatrix wMc; // world to camera transformation
     vpHomogeneousMatrix wMe; // world to ee transformation
     vpColVector q, qDot; // measured joint position and velocity
+
  };
 
 
@@ -92,6 +100,9 @@ RosAfma6Node::RosAfma6Node(ros::NodeHandle nh)
     //  frame_id_base_link = tf::resolve(tf_prefix, "base_link");
 
     // advertise services
+    setCameraPose_srv = n.advertiseService("setCameraPose", &RosAfma6Node::setCameraPose, this);
+
+    // advertise topics
     pose_pub = n.advertise<geometry_msgs::PoseStamped>("pose", 1000);
     ee_pose_pub = n.advertise<geometry_msgs::PoseStamped>("ee_pose", 1000);
     vel_pub = n.advertise<geometry_msgs::TwistStamped>("velocity", 1000);
@@ -269,6 +280,31 @@ void RosAfma6Node::setCameraVel( const geometry_msgs::TwistStampedConstPtr &msg)
     	ROS_ERROR("%s", e.what());
     }
 
+}
+
+bool RosAfma6Node::setCameraPose(visp_ros::SetCameraPose::Request  &req,
+		visp_ros::SetCameraPose::Response &res){
+
+
+	boost::mutex::scoped_lock scopedRobotMutex(robotMutex);
+
+	vpRobot::vpRobotStateType old_state = robot->getRobotState();
+
+	vpHomogeneousMatrix pose = visp_bridge::toVispHomogeneousMatrix(req.pose);
+	try {
+		robot->setRobotState(vpRobot::STATE_POSITION_CONTROL);
+		std::cout << "setting pose to" << pose << std::endl;
+		robot->setPosition(vpRobot::REFERENCE_FRAME, pose);
+		res.result = true;
+	} catch (vpException& e) {
+		ROS_ERROR("%s", e.what());
+		res.result = false;
+		res.error = e.what();
+	}
+
+	robot->setRobotState(old_state);
+
+	return res.result;
 }
 
 
